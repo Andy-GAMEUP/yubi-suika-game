@@ -6,6 +6,10 @@ HTML 파일 하나로 되어 있어 설치나 빌드가 필요 없습니다.
 
 ## 실행
 
+**바로 플레이:** https://andy-gameup.github.io/yubi-suika-game/
+
+로컬에서 실행:
+
 ```bash
 open my-suika/index.html
 ```
