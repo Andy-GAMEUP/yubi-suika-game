@@ -319,6 +319,76 @@
     crayonOutline(c, path, lw * 0.75);
     c.restore();
   }
+  // 파인애플 왕관용: 밑동이 넓고 끝이 뾰족하며 바깥으로 휘는 두꺼운 잎
+  function spike(c, rnd, x, y, len, wid, ang, bend, color, lw) {
+    c.save(); c.translate(x, y); c.rotate(ang);
+    const path = () => {
+      c.beginPath(); c.moveTo(0, -wid);
+      c.quadraticCurveTo(len * 0.55, -wid * 0.75 + bend * 0.4, len, bend);
+      c.quadraticCurveTo(len * 0.5, wid * 0.8 + bend * 0.5, 0, wid);
+      c.closePath();
+    };
+    path(); c.fillStyle = color; c.fill();
+    c.save(); path(); c.clip();
+    scribble(c, rnd, { x0: 0, y0: -wid, x1: len, y1: wid + Math.abs(bend), count: len * 2.5, len: wid * 0.9, width: 1.4, angle: 0.15, color: shade(color, -0.35), alpha: 0.4, weight: (nx, ny) => ny > 0 ? 0.9 : 0.25 });
+    scribble(c, rnd, { x0: 0, y0: -wid, x1: len * 0.7, y1: 0, count: len * 1.2, len: wid * 0.7, width: 1.2, angle: 0.1, color: shade(color, 0.4), alpha: 0.45 });
+    c.restore();
+    c.strokeStyle = shade(color, -0.42); c.lineWidth = Math.max(1, lw * 0.45); c.globalAlpha = 0.75;
+    c.beginPath(); c.moveTo(len * 0.05, 0); c.quadraticCurveTo(len * 0.55, bend * 0.3, len * 0.9, bend * 0.92); c.stroke(); c.globalAlpha = 1;
+    crayonOutline(c, path, lw * 0.75);
+    c.restore();
+  }
+  // 수박 전용: 하와이 훌라 치마 (풀잎 치마 + 꽃 허리띠) 와 머리 꽃
+  function hulaSkirt(c, rnd, r, lw) {
+    const bandY = x => r * 0.38 + r * 0.15 * Math.sqrt(Math.max(0, 1 - (x / r) ** 2)); // 둥근 몸통을 감싸는 허리선
+    const n = 30, colors = ['#c9d65a', '#9cc447', '#e3c85c', '#7fb23f'];
+    // 뒤쪽(양 끝)부터 앞쪽(가운데)으로 그려 겹침이 자연스럽게
+    const order = [...Array(n).keys()].sort((a, b) => Math.abs(b - (n - 1) / 2) - Math.abs(a - (n - 1) / 2));
+    for (const i of order) {
+      const u = i / (n - 1) * 2 - 1, x = u * r * 0.9, top = bandY(x);
+      const bottom = Math.sqrt(Math.max(0, r * r - x * x)) + r * (0.2 + rnd() * 0.08);
+      const bx = x * 1.18 + (rnd() - 0.5) * r * 0.04, w = r * 0.045, sway = (rnd() - 0.5) * r * 0.06;
+      const path = () => {
+        c.beginPath(); c.moveTo(x - w, top);
+        c.quadraticCurveTo((x + bx) / 2 - w + sway, (top + bottom) / 2, bx, bottom);
+        c.quadraticCurveTo((x + bx) / 2 + w + sway, (top + bottom) / 2, x + w, top);
+        c.closePath();
+      };
+      const col = colors[Math.floor(rnd() * colors.length)];
+      path(); c.fillStyle = col; c.fill();
+      c.strokeStyle = shade(col, -0.3); c.lineWidth = 1.2; c.globalAlpha = 0.6;
+      c.beginPath(); c.moveTo(x, top + r * 0.04); c.quadraticCurveTo((x + bx) / 2 + sway, (top + bottom) / 2, bx, bottom - r * 0.04); c.stroke();
+      c.globalAlpha = 1;
+      crayonOutline(c, path, lw * 0.5);
+    }
+    // 허리띠
+    const band = () => {
+      c.beginPath();
+      for (let k = 0; k <= 24; k++) { const x = -r * 0.96 + k * r * 0.08; c.lineTo(x, bandY(x) - r * 0.05); }
+      for (let k = 24; k >= 0; k--) { const x = -r * 0.96 + k * r * 0.08; c.lineTo(x, bandY(x) + r * 0.05); }
+      c.closePath();
+    };
+    band(); c.fillStyle = '#b8843a'; c.fill();
+    c.save(); band(); c.clip();
+    scribble(c, rnd, { x0: -r, y0: r * 0.3, x1: r, y1: r * 0.6, count: r * 2, len: r * 0.06, width: 1.5, angle: 0.9, color: '#7a5320', alpha: 0.5 });
+    c.restore();
+    crayonOutline(c, band, lw * 0.7);
+    // 허리띠의 작은 꽃들
+    [-0.62, -0.2, 0.22, 0.64].forEach((u, i) => flower(c, u * r, bandY(u * r), r * 0.075, i % 2 ? '#ffd23f' : '#ff6fa3', lw));
+    // 머리에 꽂은 큰 히비스커스
+    flower(c, -r * 0.5, -r * 0.62, r * 0.17, '#ff4f6d', lw);
+  }
+  function flower(c, x, y, s, color, lw) {
+    c.save(); c.translate(x, y);
+    const petals = () => {
+      c.beginPath();
+      for (let k = 0; k < 5; k++) { const a = k * Math.PI * 2 / 5 - Math.PI / 2; c.ellipse(Math.cos(a) * s * 0.55, Math.sin(a) * s * 0.55, s * 0.5, s * 0.36, a, 0, Math.PI * 2); }
+    };
+    petals(); c.fillStyle = color; c.fill();
+    c.strokeStyle = INK; c.lineWidth = Math.max(1, lw * 0.45); c.stroke();
+    c.fillStyle = '#fff3a8'; c.beginPath(); c.arc(0, 0, s * 0.24, 0, 7); c.fill(); c.stroke();
+    c.restore();
+  }
   function stem(c, x0, y0, cx, cy, x1, y1, w, lw, color = '#7a4b26') {
     const path = () => { c.beginPath(); c.moveTo(x0, y0); c.quadraticCurveTo(cx, cy, x1, y1); };
     c.save(); c.lineCap = 'round';
@@ -331,7 +401,7 @@
   const SS = 2; // 고해상도 렌더 배율
   function buildFruitBody(lv) {
     const f = FRUITS[lv], r = f.r, rnd = rng(1000 + lv * 97);
-    const pad = Math.ceil(r * 0.62) + 8, size = (r + pad) * 2;
+    const pad = Math.ceil(r * (f.kind === 'pineapple' ? 0.78 : 0.62)) + 8, size = (r + pad) * 2;
     const cv = document.createElement('canvas'); cv.width = cv.height = size * SS;
     const c = cv.getContext('2d'); c.scale(SS, SS); c.translate(size / 2, size / 2);
     const lw = 2.2 + r * 0.032;
@@ -343,7 +413,11 @@
       stem(c, 0, -r * 0.75, r * 0.15, -r * 1.5, r * 0.8, -r * 1.55, r * 0.13, lw, '#6d8f2c');
       leaf(c, rnd, r * 0.7, -r * 1.5, r * 0.75, r * 0.28, -0.3, '#5fae45', lw);
     } else if (f.kind === 'pineapple') {
-      for (let i = -2; i <= 2; i++) leaf(c, rnd, i * r * 0.1, -r * 0.82, r * (0.62 - Math.abs(i) * 0.08), r * 0.13, -Math.PI / 2 + i * 0.32, i % 2 ? '#3f8f3a' : '#57a843', lw);
+      // 뒷줄: 가운데가 가장 길고 양옆으로 부채처럼 펼쳐진 진한 잎
+      for (const i of [-2, 2, -1, 1, 0]) {
+        const a = -Math.PI / 2 + i * 0.5, len = r * (0.95 - Math.abs(i) * 0.14);
+        spike(c, rnd, i * r * 0.06, -r * 0.76, len, r * 0.17, a, (i === 0 ? 0 : Math.sign(i)) * r * 0.12, i % 2 ? '#2f7a3c' : '#3a8c43', lw);
+      }
     }
 
     // --- 몸통 ---
@@ -436,7 +510,15 @@
       stem(c, 0, -r * 0.82, r * 0.02, -r * 0.95, r * 0.08, -r * 1.12, r * 0.08, lw);
       leaf(c, rnd, r * 0.06, -r * 1.02, r * 0.5, r * 0.17, f.kind === 'peach' ? -0.1 : -0.45, '#5aa83e', lw);
       if (f.kind === 'peach') leaf(c, rnd, r * 0.02, -r * 1.0, r * 0.42, r * 0.15, Math.PI + 0.35, '#4c9636', lw);
-    } else if (f.kind === 'melon' || f.kind === 'watermelon') {
+    } else if (f.kind === 'pineapple') {
+      // 앞줄: 짧고 밝은 잎이 몸통 윗부분을 살짝 덮음
+      for (const i of [-1, 1, 0]) {
+        const a = -Math.PI / 2 + i * 0.75, len = r * (0.58 - Math.abs(i) * 0.1);
+        spike(c, rnd, i * r * 0.08, -r * 0.74, len, r * 0.14, a, (i === 0 ? 0 : Math.sign(i)) * r * 0.1, '#5db84a', lw);
+      }
+    }
+    if (f.kind === 'watermelon') hulaSkirt(c, rnd, r, lw);
+    if (f.kind === 'melon' || f.kind === 'watermelon') {
       stem(c, 0, -r * 0.9, r * 0.02, -r * 1.02, r * 0.12, -r * 1.06, r * 0.05, lw, '#5a7a2a');
       c.save(); c.strokeStyle = '#5a7a2a'; c.lineWidth = r * 0.025; c.lineCap = 'round';
       c.beginPath(); c.arc(r * 0.17, -r * 1.06, r * 0.05, Math.PI, Math.PI * 2.6); c.stroke(); c.restore();
