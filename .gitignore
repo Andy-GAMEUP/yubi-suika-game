@@ -3,3 +3,5 @@ suika-analysis/raw/
 suika-analysis/game.deob.js
 
 .DS_Store
+
+.claude/
