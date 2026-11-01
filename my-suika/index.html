@@ -235,7 +235,7 @@
   const TOP = 150, DEPTH = 24;                        // 상자 윗면 높이와 원근 깊이
   const CLOUD_Y = 46, HOLD_Y = 96, DANGER_Y = TOP;    // 상자 테두리가 곧 데드라인
   const POP_MS = 220, DROP_COOLDOWN = 550, OVER_GRACE = 2000, SPAWN_GRACE = 1200, COMBO_WINDOW = 900;
-  const BOUNCE_SMALL = 0.5, BOUNCE_BIG = 0.25;
+  const BOUNCE_SMALL = 0.5, BOUNCE_BIG = 0.25, SIDE_DAMP = 0.45;
   const SQUASH_K = 320, SQUASH_DAMP = 11;
   const MERGE_START = 0.55, MERGE_GROW = 1.07;
   const INK = '#4a2c17';
@@ -253,6 +253,9 @@
     { name: '멜론',     r: 111, color: '#a8d66b', kind: 'melon' },
     { name: '수박',     r: 130, color: '#3aa856', kind: 'watermelon' },
   ];
+  // 단단하고 둥근 과일: 윤곽을 매끈하게, 부딪힐 때 찌그러짐도 작게
+  const ROUND = new Set(['orange', 'apple', 'pear', 'peach', 'melon', 'watermelon']);
+  const SQUISH = FRUITS.map(f => ROUND.has(f.kind) ? 0.3 : 1);
   const SCORES = [1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 66];
   const MAX = FRUITS.length - 1;
 
@@ -338,57 +341,6 @@
     crayonOutline(c, path, lw * 0.75);
     c.restore();
   }
-  // 수박 전용: 하와이 훌라 치마 (풀잎 치마 + 꽃 허리띠) 와 머리 꽃
-  function hulaSkirt(c, rnd, r, lw) {
-    const bandY = x => r * 0.38 + r * 0.15 * Math.sqrt(Math.max(0, 1 - (x / r) ** 2)); // 둥근 몸통을 감싸는 허리선
-    const n = 30, colors = ['#c9d65a', '#9cc447', '#e3c85c', '#7fb23f'];
-    // 뒤쪽(양 끝)부터 앞쪽(가운데)으로 그려 겹침이 자연스럽게
-    const order = [...Array(n).keys()].sort((a, b) => Math.abs(b - (n - 1) / 2) - Math.abs(a - (n - 1) / 2));
-    for (const i of order) {
-      const u = i / (n - 1) * 2 - 1, x = u * r * 0.9, top = bandY(x);
-      const bottom = Math.sqrt(Math.max(0, r * r - x * x)) + r * (0.2 + rnd() * 0.08);
-      const bx = x * 1.18 + (rnd() - 0.5) * r * 0.04, w = r * 0.045, sway = (rnd() - 0.5) * r * 0.06;
-      const path = () => {
-        c.beginPath(); c.moveTo(x - w, top);
-        c.quadraticCurveTo((x + bx) / 2 - w + sway, (top + bottom) / 2, bx, bottom);
-        c.quadraticCurveTo((x + bx) / 2 + w + sway, (top + bottom) / 2, x + w, top);
-        c.closePath();
-      };
-      const col = colors[Math.floor(rnd() * colors.length)];
-      path(); c.fillStyle = col; c.fill();
-      c.strokeStyle = shade(col, -0.3); c.lineWidth = 1.2; c.globalAlpha = 0.6;
-      c.beginPath(); c.moveTo(x, top + r * 0.04); c.quadraticCurveTo((x + bx) / 2 + sway, (top + bottom) / 2, bx, bottom - r * 0.04); c.stroke();
-      c.globalAlpha = 1;
-      crayonOutline(c, path, lw * 0.5);
-    }
-    // 허리띠
-    const band = () => {
-      c.beginPath();
-      for (let k = 0; k <= 24; k++) { const x = -r * 0.96 + k * r * 0.08; c.lineTo(x, bandY(x) - r * 0.05); }
-      for (let k = 24; k >= 0; k--) { const x = -r * 0.96 + k * r * 0.08; c.lineTo(x, bandY(x) + r * 0.05); }
-      c.closePath();
-    };
-    band(); c.fillStyle = '#b8843a'; c.fill();
-    c.save(); band(); c.clip();
-    scribble(c, rnd, { x0: -r, y0: r * 0.3, x1: r, y1: r * 0.6, count: r * 2, len: r * 0.06, width: 1.5, angle: 0.9, color: '#7a5320', alpha: 0.5 });
-    c.restore();
-    crayonOutline(c, band, lw * 0.7);
-    // 허리띠의 작은 꽃들
-    [-0.62, -0.2, 0.22, 0.64].forEach((u, i) => flower(c, u * r, bandY(u * r), r * 0.075, i % 2 ? '#ffd23f' : '#ff6fa3', lw));
-    // 머리에 꽂은 큰 히비스커스
-    flower(c, -r * 0.5, -r * 0.62, r * 0.17, '#ff4f6d', lw);
-  }
-  function flower(c, x, y, s, color, lw) {
-    c.save(); c.translate(x, y);
-    const petals = () => {
-      c.beginPath();
-      for (let k = 0; k < 5; k++) { const a = k * Math.PI * 2 / 5 - Math.PI / 2; c.ellipse(Math.cos(a) * s * 0.55, Math.sin(a) * s * 0.55, s * 0.5, s * 0.36, a, 0, Math.PI * 2); }
-    };
-    petals(); c.fillStyle = color; c.fill();
-    c.strokeStyle = INK; c.lineWidth = Math.max(1, lw * 0.45); c.stroke();
-    c.fillStyle = '#fff3a8'; c.beginPath(); c.arc(0, 0, s * 0.24, 0, 7); c.fill(); c.stroke();
-    c.restore();
-  }
   function stem(c, x0, y0, cx, cy, x1, y1, w, lw, color = '#7a4b26') {
     const path = () => { c.beginPath(); c.moveTo(x0, y0); c.quadraticCurveTo(cx, cy, x1, y1); };
     c.save(); c.lineCap = 'round';
@@ -401,11 +353,11 @@
   const SS = 2; // 고해상도 렌더 배율
   function buildFruitBody(lv) {
     const f = FRUITS[lv], r = f.r, rnd = rng(1000 + lv * 97);
-    const pad = Math.ceil(r * (f.kind === 'pineapple' ? 0.78 : 0.62)) + 8, size = (r + pad) * 2;
+    const pad = Math.ceil(r * (f.kind === 'pineapple' ? 0.7 : 0.62)) + 8, size = (r + pad) * 2;
     const cv = document.createElement('canvas'); cv.width = cv.height = size * SS;
     const c = cv.getContext('2d'); c.scale(SS, SS); c.translate(size / 2, size / 2);
     const lw = 2.2 + r * 0.032;
-    const pts = blobPoints(r, rnd), body = () => polyPath(c, pts);
+    const pts = blobPoints(r, rnd, ROUND.has(f.kind) || f.kind === 'pineapple' ? 0.006 : 0.022), body = () => polyPath(c, pts);
     const dark = shade(f.color, -0.32), light = shade(f.color, 0.35);
 
     // --- 몸통 뒤 장식 ---
@@ -413,11 +365,9 @@
       stem(c, 0, -r * 0.75, r * 0.15, -r * 1.5, r * 0.8, -r * 1.55, r * 0.13, lw, '#6d8f2c');
       leaf(c, rnd, r * 0.7, -r * 1.5, r * 0.75, r * 0.28, -0.3, '#5fae45', lw);
     } else if (f.kind === 'pineapple') {
-      // 뒷줄: 가운데가 가장 길고 양옆으로 부채처럼 펼쳐진 진한 잎
-      for (const i of [-2, 2, -1, 1, 0]) {
-        const a = -Math.PI / 2 + i * 0.5, len = r * (0.95 - Math.abs(i) * 0.14);
-        spike(c, rnd, i * r * 0.06, -r * 0.76, len, r * 0.17, a, (i === 0 ? 0 : Math.sign(i)) * r * 0.12, i % 2 ? '#2f7a3c' : '#3a8c43', lw);
-      }
+      // 짧고 넓은 연두 잎 5장이 부채꼴로 넓게 펼쳐진 왕관 (바깥 잎은 거의 옆으로 눕힘)
+      [[-1.25, 0.6, '#6fbb3e'], [1.25, 0.6, '#6fbb3e'], [-0.62, 0.7, '#80c94a'], [0.62, 0.7, '#80c94a'], [0, 0.72, '#92d556']].forEach(([t, len, col]) =>
+        spike(c, rnd, t * r * 0.16, -r * 0.74, r * len, r * 0.27, -Math.PI / 2 + t, Math.sign(t) * r * 0.14, col, lw));
     }
 
     // --- 몸통 ---
@@ -510,14 +460,7 @@
       stem(c, 0, -r * 0.82, r * 0.02, -r * 0.95, r * 0.08, -r * 1.12, r * 0.08, lw);
       leaf(c, rnd, r * 0.06, -r * 1.02, r * 0.5, r * 0.17, f.kind === 'peach' ? -0.1 : -0.45, '#5aa83e', lw);
       if (f.kind === 'peach') leaf(c, rnd, r * 0.02, -r * 1.0, r * 0.42, r * 0.15, Math.PI + 0.35, '#4c9636', lw);
-    } else if (f.kind === 'pineapple') {
-      // 앞줄: 짧고 밝은 잎이 몸통 윗부분을 살짝 덮음
-      for (const i of [-1, 1, 0]) {
-        const a = -Math.PI / 2 + i * 0.75, len = r * (0.58 - Math.abs(i) * 0.1);
-        spike(c, rnd, i * r * 0.08, -r * 0.74, len, r * 0.14, a, (i === 0 ? 0 : Math.sign(i)) * r * 0.1, '#5db84a', lw);
-      }
     }
-    if (f.kind === 'watermelon') hulaSkirt(c, rnd, r, lw);
     if (f.kind === 'melon' || f.kind === 'watermelon') {
       stem(c, 0, -r * 0.9, r * 0.02, -r * 1.02, r * 0.12, -r * 1.06, r * 0.05, lw, '#5a7a2a');
       c.save(); c.strokeStyle = '#5a7a2a'; c.lineWidth = r * 0.025; c.lineCap = 'round';
@@ -966,13 +909,14 @@
     engine = Engine.create();
     engine.gravity.y = 1.5;
     engine.positionIterations = 8; engine.velocityIterations = 6;
-    const wallOpt = { isStatic: true, friction: 0.05, restitution: 0.35, label: 'wall' };
+    const wallOpt = { isStatic: true, friction: 0.05, restitution: 0.12, label: 'wall' };
     Composite.add(engine.world, [
       Bodies.rectangle(WALL / 2, H / 2, WALL, H * 3, wallOpt),
       Bodies.rectangle(W - WALL / 2, H / 2, WALL, H * 3, wallOpt),
       Bodies.rectangle(W / 2, H - FLOOR / 2, W, FLOOR, wallOpt),
     ]);
     Events.on(engine, 'collisionStart', onImpact);
+    Events.on(engine, 'afterUpdate', dampSideBounce);
     Events.on(engine, 'collisionStart', onCollide);
     Events.on(engine, 'collisionActive', onCollide);
     fruits = []; particles = []; popups = []; mergeQueue = []; flares = []; poppers = [];
@@ -997,6 +941,14 @@
     return body;
   }
 
+  // 충돌로 생긴 가로 속도를 깎아 작은 과일이 옆으로 튀어나가지 않게 함
+  function dampSideBounce() {
+    for (const f of fruits) {
+      if (!f.hit) continue;
+      f.hit = false;
+      Body.setVelocity(f, { x: f.velocity.x * (SIDE_DAMP + (1 - SIDE_DAMP) * f.level / MAX), y: f.velocity.y });
+    }
+  }
   function onImpact(e) {
     const now = performance.now();
     for (const p of e.pairs) {
@@ -1007,6 +959,7 @@
         if (f.label !== 'fruit') continue;
         const kick = Math.min(0.32, impact * 0.03 * (1.15 - 0.06 * f.level));
         if (kick > f.sq) { f.sq = kick; f.sv = 0; f.sqA = Math.atan2(n.y, n.x); }
+        f.hit = true;
       }
       if (impact > 3 && now - lastBump > 50) { lastBump = now; Sound.bump(impact, Math.max(a.level || 0, b.level || 0)); }
     }
@@ -1198,7 +1151,7 @@
     for (const f of fruits) {
       const r = f.circleRadius;
       const face = gameOver ? 'scared' : (danger > 0.3 && f.position.y - r < DANGER_Y + 40 ? 'scared' : (f.sq > 0.1 || f.speed > 6 ? 'squish' : ((now + f.blinkSeed) % 3600 < 140 ? 'blink' : 'happy')));
-      drawFruitSprite(ctx, f.level, f.position.x, f.position.y, r, f.angle, face, Math.max(-0.25, Math.min(0.35, f.sq)), f.sqA);
+      drawFruitSprite(ctx, f.level, f.position.x, f.position.y, r, f.angle, face, Math.max(-0.25, Math.min(0.35, f.sq)) * SQUISH[f.level], f.sqA);
     }
 
     for (const p of poppers) {

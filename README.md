@@ -11,7 +11,7 @@ HTML 파일 하나로 되어 있어 설치나 빌드가 필요 없습니다.
 로컬에서 실행:
 
 ```bash
-open my-suika/index.html
+open my-suika/inde.html
 ```
 
 물리 엔진(Matter.js)과 글꼴(Gaegu)을 CDN에서 불러오므로 인터넷 연결이 필요합니다.
@@ -44,7 +44,7 @@ open my-suika/index.html
 
 ## 폴더 구성
 
-- `my-suika/index.html` — 게임 전체
+- `my-suika/inde.html` — 게임 전체
 - `suika-analysis/BENCHMARK.md` — 참고한 웹 수박게임의 구조·규칙 분석 메모
 
 분석에 사용한 원작 리소스와 코드는 저작물이므로 저장소에 포함하지 않았습니다. 이 게임의 그래픽과 사운드는 모두 직접 제작했습니다.
