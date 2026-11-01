@@ -1,0 +1,9 @@
+{
+  "name": "유비의 수박게임",
+  "short_name": "수박게임",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fdf1dc",
+  "theme_color": "#fdf1dc"
+}

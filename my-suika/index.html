@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#fdf1dc">
+<link rel="manifest" href="manifest.webmanifest">
 <title>유비의 수박게임</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -64,7 +65,7 @@
   .layout {
     flex: 1; min-height: 0; width: 100%; max-width: 1180px; margin: 0 auto; padding: 4px 16px 14px;
     display: grid; gap: 16px;
-    grid-template-columns: minmax(180px, 250px) minmax(0, 1fr) minmax(190px, 260px);
+    grid-template-columns: minmax(180px, 250px) minmax(0, 1fr) minmax(140px, 185px);
     grid-template-areas: "left stage right";
   }
   .panel {
@@ -95,8 +96,8 @@
   @keyframes shine { 50% { background: color-mix(in srgb, var(--gold) 60%, transparent); } }
 
   .next-card, .ring-card { text-align: center; }
-  .next-card canvas { width: 100%; max-width: 220px; height: auto; display: block; margin: 0 auto; }
-  .ring-card canvas { width: 100%; max-width: 260px; height: auto; display: block; margin: 0 auto; }
+  .next-card canvas { width: 100%; max-width: 154px; height: auto; display: block; margin: 0 auto; }
+  .ring-card canvas { width: 100%; max-width: 182px; height: auto; display: block; margin: 0 auto; }
 
   .board { position: relative; touch-action: none; }
   #game { display: block; width: 100%; height: 100%; cursor: pointer; }
@@ -136,9 +137,9 @@
     .now b { font-size: clamp(28px, 9vw, 40px); }
     .now .combo { font-size: 15px; min-height: 18px; white-space: nowrap; }
     .next-card { grid-area: next; padding: 4px 6px; display: flex; flex-direction: column; justify-content: center; }
-    .next-card canvas { width: auto; height: clamp(52px, 9dvh, 76px); }
+    .next-card canvas { width: auto; height: clamp(38px, 6.3dvh, 53px); }
     .ring-card { grid-area: ring; padding: 4px; display: flex; align-items: center; }
-    .ring-card canvas { width: auto; height: clamp(72px, 12dvh, 104px); }
+    .ring-card canvas { width: auto; height: clamp(52px, 8.4dvh, 73px); }
     /* 랭킹보드는 화면 위에 뜨는 시트 */
     .board-card {
       display: none; position: fixed; z-index: 30;
@@ -155,21 +156,18 @@
     .modal button { font-size: 22px; padding: 6px 26px; }
   }
 
-  /* 가로로 눕힌 휴대폰: 세로 공간이 적으므로 머리말과 패널을 줄임 */
-  @media (max-height: 520px) and (orientation: landscape) {
-    .top { padding: 4px 16px 2px; }
-    h1 { font-size: 24px; }
-    .sbtn { width: 38px; height: 32px; font-size: 16px; }
-    .layout { gap: 10px; padding: 2px 16px 6px; grid-template-columns: minmax(150px, 220px) minmax(0, 1fr) minmax(150px, 220px); }
-    .panel { padding: 6px 10px; }
-    .left, .right { gap: 8px; }
-    .now b { font-size: 32px; }
-    .board-card h2 { font-size: 20px; }
-    .ranks .pts { font-size: 20px; }
-    .next-card canvas { max-height: 22dvh; width: auto; }
-    .ring-card { flex: 1; min-height: 0; }
-    .ring-card canvas { max-height: 100%; width: auto; max-width: 100%; }
+  /* 세로 전용: 휴대폰·태블릿을 가로로 돌리면 게임을 멈추고 세로로 돌려 달라고 안내 */
+  .rotate-msg { display: none; }
+  @media (orientation: landscape) and (pointer: coarse) and (max-height: 600px) {
+    .top, .layout { display: none; }
+    .rotate-msg {
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+      height: 100%; text-align: center; font-size: 26px; color: var(--ink);
+    }
+    .rotate-msg .phone { font-size: 64px; animation: tilt 1.6s ease-in-out infinite; }
+    .rotate-msg small { font-size: 17px; color: var(--ink-soft); }
   }
+  @keyframes tilt { 0%, 30% { transform: rotate(-90deg); } 60%, 100% { transform: rotate(0); } }
 </style>
 </head>
 <body>
@@ -181,6 +179,12 @@
     <button class="sbtn rank-btn" id="rankBtn" aria-label="랭킹보드" title="랭킹보드">🏆</button>
   </div>
 </header>
+
+<div class="rotate-msg" role="alert">
+  <div class="phone">📱</div>
+  휴대폰을 세로로 돌려 주세요
+  <small>유비의 수박게임은 세로 화면에서만 플레이할 수 있어요</small>
+</div>
 
 <main class="layout">
   <aside class="left">
@@ -230,18 +234,18 @@
   const WALL = 28, FLOOR = 30, FLOOR_Y = H - FLOOR;   // 물리 벽 = 상자 앞 기둥 안쪽 면
   const TOP = 150, DEPTH = 24;                        // 상자 윗면 높이와 원근 깊이
   const CLOUD_Y = 46, HOLD_Y = 96, DANGER_Y = TOP;    // 상자 테두리가 곧 데드라인
-  const DROP_COOLDOWN = 550, OVER_GRACE = 2000, SPAWN_GRACE = 1200, COMBO_WINDOW = 900;
+  const POP_MS = 220, DROP_COOLDOWN = 550, OVER_GRACE = 2000, SPAWN_GRACE = 1200, COMBO_WINDOW = 900;
   const BOUNCE_SMALL = 0.5, BOUNCE_BIG = 0.25;
   const SQUASH_K = 320, SQUASH_DAMP = 11;
   const MERGE_START = 0.55, MERGE_GROW = 1.07;
   const INK = '#4a2c17';
 
   const FRUITS = [
-    { name: '체리',     r: 17,  color: '#e8344a', kind: 'cherry' },
-    { name: '딸기',     r: 23,  color: '#ff5470', kind: 'strawberry' },
-    { name: '포도',     r: 31,  color: '#9461d8', kind: 'grape' },
-    { name: '귤',       r: 36,  color: '#ffa22e', kind: 'tangerine' },
-    { name: '감',       r: 45,  color: '#ff7a1a', kind: 'persimmon' },
+    { name: '체리',     r: 17,  color: '#a3122f', kind: 'cherry' },
+    { name: '딸기',     r: 23,  color: '#ff4f7e', kind: 'strawberry' },
+    { name: '블루베리', r: 31,  color: '#4a63d6', kind: 'blueberry' },
+    { name: '오렌지',   r: 36,  color: '#ffb21c', kind: 'orange' },
+    { name: '감',       r: 45,  color: '#e85215', kind: 'persimmon' },
     { name: '사과',     r: 56,  color: '#ef3b36', kind: 'apple' },
     { name: '배',       r: 65,  color: '#f0d86a', kind: 'pear' },
     { name: '복숭아',   r: 80,  color: '#ffb8a6', kind: 'peach' },
@@ -357,14 +361,15 @@
         c.fillStyle = '#ffeaa0'; c.strokeStyle = shade(f.color, -0.45); c.lineWidth = 0.9;
         c.beginPath(); c.ellipse(sx, sy, r * 0.045, r * 0.075, a, 0, 7); c.fill(); c.stroke();
       }
-    } else if (f.kind === 'grape') {
-      [[-0.42, -0.38], [0.12, -0.52], [0.52, -0.12], [-0.6, 0.18], [-0.12, 0.08], [0.32, 0.42], [-0.3, 0.58]].forEach(([bx, by]) => {
-        c.strokeStyle = shade(f.color, 0.28); c.lineWidth = 1.2 + r * 0.03; c.globalAlpha = 0.75;
-        c.beginPath(); c.arc(bx * r, by * r, r * 0.3, 0.6 * Math.PI, 1.9 * Math.PI); c.stroke();
-        c.globalAlpha = 0.9; c.fillStyle = '#fff'; c.beginPath(); c.arc(bx * r - r * 0.1, by * r - r * 0.1, r * 0.05, 0, 7); c.fill();
-        c.globalAlpha = 1;
-      });
-    } else if (f.kind === 'tangerine' || f.kind === 'persimmon' || f.kind === 'pear') {
+    } else if (f.kind === 'blueberry') {
+      // 하얀 분(가루) 낀 겉면 + 꼭지 쪽 별 모양 왕관
+      scribble(c, rnd, { ...box, count: r * r * 0.07, len: r * 0.22, width: 2, color: '#c9d6ff', alpha: 0.35, weight: (x, y) => clamp01(1 - Math.hypot(x + 0.2, y + 0.1)) });
+      const cy0 = -r * 0.5, cr = r * 0.26;
+      c.fillStyle = '#26307a'; c.strokeStyle = INK; c.lineWidth = 1 + r * 0.025; c.lineJoin = 'round';
+      c.beginPath();
+      for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? cr * 0.45 : cr; c.lineTo(Math.cos(a) * rr, cy0 + Math.sin(a) * rr * 0.75); }
+      c.closePath(); c.fill(); c.stroke();
+    } else if (f.kind === 'orange' || f.kind === 'persimmon' || f.kind === 'pear') {
       const dot = f.kind === 'pear' ? 'rgba(150,105,30,.45)' : shade(f.color, -0.25);
       for (let i = 0; i < (f.kind === 'pear' ? 40 : 26); i++) {
         const a = rnd() * 6.28, d = r * Math.sqrt(rnd()) * 0.9;
@@ -427,13 +432,10 @@
         leaf(c, rnd, 0, -r * 0.82, r * 0.42, r * 0.13, a + (a < -Math.PI / 2 ? -0.9 : 0.9) * 0.6 + Math.PI / 2 * 0, col, lw);
       }
       if (f.kind === 'persimmon') stem(c, 0, -r * 0.82, 0, -r * 0.9, r * 0.03, -r * 1.0, r * 0.08, lw);
-    } else if (['tangerine', 'apple', 'pear', 'peach'].includes(f.kind)) {
+    } else if (['orange', 'apple', 'pear', 'peach'].includes(f.kind)) {
       stem(c, 0, -r * 0.82, r * 0.02, -r * 0.95, r * 0.08, -r * 1.12, r * 0.08, lw);
       leaf(c, rnd, r * 0.06, -r * 1.02, r * 0.5, r * 0.17, f.kind === 'peach' ? -0.1 : -0.45, '#5aa83e', lw);
       if (f.kind === 'peach') leaf(c, rnd, r * 0.02, -r * 1.0, r * 0.42, r * 0.15, Math.PI + 0.35, '#4c9636', lw);
-    } else if (f.kind === 'grape') {
-      stem(c, 0, -r * 0.8, -r * 0.05, -r * 0.95, r * 0.05, -r * 1.15, r * 0.11, lw);
-      leaf(c, rnd, r * 0.05, -r * 1.05, r * 0.55, r * 0.2, -0.5, '#5aa83e', lw);
     } else if (f.kind === 'melon' || f.kind === 'watermelon') {
       stem(c, 0, -r * 0.9, r * 0.02, -r * 1.02, r * 0.12, -r * 1.06, r * 0.05, lw, '#5a7a2a');
       c.save(); c.strokeStyle = '#5a7a2a'; c.lineWidth = r * 0.025; c.lineCap = 'round';
@@ -449,7 +451,34 @@
     c.scale(SS, SS); c.translate(base.size / 2, base.size / 2);
     const ex = r * 0.3, ey = r * 0.1, es = Math.max(1.9, r * 0.085);
     c.fillStyle = INK; c.strokeStyle = INK; c.lineCap = 'round'; c.lineJoin = 'round';
-    if (face === 'squish') {
+    const closedEyes = (curve) => [-1, 1].forEach(s => { c.beginPath(); c.arc(s * ex, ey + es * 0.2 * curve, es * 0.95, Math.PI * (curve > 0 ? 1.15 : 0.15), Math.PI * (curve > 0 ? 1.85 : 0.85)); c.stroke(); });
+    if (face === 'blink') {
+      c.lineWidth = Math.max(1.6, lw * 0.75); closedEyes(-1);
+      c.lineWidth = Math.max(1.4, lw * 0.6);
+      c.beginPath(); c.arc(-r * 0.055, ey + r * 0.14, r * 0.055, 0.1 * Math.PI, 0.9 * Math.PI); c.arc(r * 0.055, ey + r * 0.14, r * 0.055, 0.1 * Math.PI, 0.9 * Math.PI); c.stroke();
+    } else if (face === 'shut') {
+      // 질끈 감은 눈 > < 와 꽉 다문 입
+      c.lineWidth = Math.max(1.8, lw * 0.85);
+      [-1, 1].forEach(s => { c.beginPath(); c.moveTo(s * ex - s * es, ey - es); c.lineTo(s * ex + s * es * 0.7, ey); c.lineTo(s * ex - s * es, ey + es); c.stroke(); });
+      c.beginPath(); c.moveTo(-r * 0.1, ey + r * 0.24); c.quadraticCurveTo(0, ey + r * 0.17, r * 0.1, ey + r * 0.24); c.stroke();
+      [-1, 1].forEach(s => { c.beginPath(); c.moveTo(s * (ex + es * 2), ey - es * 1.6); c.lineTo(s * (ex + es * 3.2), ey - es * 2.6); c.stroke(); });
+    } else if (face === 'shock') {
+      // 휘둥그레 눈과 크게 벌린 입 (으악!)
+      [-1, 1].forEach(s => {
+        c.fillStyle = '#fff'; c.beginPath(); c.arc(s * ex, ey - es * 0.3, es * 1.75, 0, 7); c.fill();
+        c.lineWidth = Math.max(1.3, lw * 0.55); c.stroke();
+        c.fillStyle = INK; c.beginPath(); c.arc(s * ex, ey - es * 0.3, es * 0.45, 0, 7); c.fill();
+      });
+      c.fillStyle = '#7a1f2b'; c.beginPath(); c.ellipse(0, ey + r * 0.27, r * 0.1, r * 0.14, 0, 0, 7); c.fill(); c.lineWidth = Math.max(1.3, lw * 0.55); c.stroke();
+      c.fillStyle = '#ff8fa0'; c.beginPath(); c.ellipse(0, ey + r * 0.34, r * 0.06, r * 0.04, 0, 0, 7); c.fill();
+    } else if (face === 'dizzy') {
+      // X 눈과 혀 내민 입
+      c.lineWidth = Math.max(1.8, lw * 0.85);
+      [-1, 1].forEach(s => { const x = s * ex, d = es * 0.9; c.beginPath(); c.moveTo(x - d, ey - d); c.lineTo(x + d, ey + d); c.moveTo(x + d, ey - d); c.lineTo(x - d, ey + d); c.stroke(); });
+      c.lineWidth = Math.max(1.4, lw * 0.6);
+      c.beginPath(); c.moveTo(-r * 0.12, ey + r * 0.2); c.lineTo(r * 0.12, ey + r * 0.2); c.stroke();
+      c.fillStyle = '#ff7b8f'; c.beginPath(); c.arc(r * 0.04, ey + r * 0.24, r * 0.06, 0, Math.PI); c.fill(); c.stroke();
+    } else if (face === 'squish') {
       c.lineWidth = Math.max(1.6, lw * 0.75);
       [-1, 1].forEach(s => { c.beginPath(); c.moveTo(s * ex - s * es, ey - es * 0.9); c.lineTo(s * ex + s * es * 0.6, ey); c.lineTo(s * ex - s * es, ey + es * 0.9); c.stroke(); });
       c.beginPath(); c.ellipse(0, ey + r * 0.2, r * 0.07, r * 0.09, 0, 0, 7); c.fill();
@@ -479,7 +508,9 @@
     return cv;
   }
 
-  const FACES = ['happy', 'squish', 'scared'];
+  const FACES = ['happy', 'blink', 'squish', 'scared', 'shut', 'shock', 'dizzy'];
+  // 터질 때 과일마다 다른 표정
+  const POP_FACE = ['shut', 'shock', 'dizzy', 'shut', 'shock', 'dizzy', 'shut', 'shock', 'shut', 'dizzy', 'shock'];
   const SPRITES = FRUITS.map((_, lv) => {
     const base = buildFruitBody(lv);
     return { size: base.size, faces: Object.fromEntries(FACES.map(fc => [fc, addFace(base, lv, fc)])) };
@@ -608,8 +639,12 @@
     function init() {
       if (ac) return;
       try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch { return; }
-      master = ac.createGain(); master.gain.value = 0.9; master.connect(ac.destination);
-      sfxBus = ac.createGain(); sfxBus.connect(master);
+      // 효과음을 크게 키우되 리미터로 찢어지는 소리를 막음
+      const limiter = ac.createDynamicsCompressor();
+      limiter.threshold.value = -10; limiter.knee.value = 6; limiter.ratio.value = 12; limiter.attack.value = 0.002; limiter.release.value = 0.15;
+      limiter.connect(ac.destination);
+      master = ac.createGain(); master.gain.value = 1; master.connect(limiter);
+      sfxBus = ac.createGain(); sfxBus.gain.value = 2.2; sfxBus.connect(master);
       bgmBus = ac.createGain(); bgmBus.gain.value = bgmOn ? 0.3 : 0; bgmBus.connect(master);
       noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
       const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -646,8 +681,8 @@
     const VOICES = [
       (t, f) => { note(f, t, 0.06, { type: 'square', vol: 0.06, to: f * 1.25 }); note(f * 1.5, t + 0.07, 0.08, { type: 'square', vol: 0.06 }); }, // 체리: 삐뽁
       (t, f) => note(f * 0.7, t, 0.24, { to: f * 1.3, vib: 30, vol: 0.18 }),                                                                 // 딸기: 뽀잉
-      (t, f) => { for (let i = 0; i < 3; i++) note(f * (0.8 + Math.random() * 0.6), t + i * 0.055, 0.07, { to: f * 1.7, vol: 0.12 }); },    // 포도: 뽀로록
-      (t, f) => { note(f * 0.6, t, 0.13, { to: f * 1.4, vol: 0.2 }); noise(t, 0.025, { vol: 0.12, freq: 2600 }); },                          // 귤: 퐁
+      (t, f) => { for (let i = 0; i < 3; i++) note(f * (0.8 + Math.random() * 0.6), t + i * 0.055, 0.07, { to: f * 1.7, vol: 0.12 }); },    // 블루베리: 뽀로록
+      (t, f) => { note(f * 0.6, t, 0.13, { to: f * 1.4, vol: 0.2 }); noise(t, 0.025, { vol: 0.12, freq: 2600 }); },                          // 오렌지: 퐁
       (t, f) => { note(f, t, 0.15, { type: 'triangle', vol: 0.24, to: f * 0.97 }); note(f * 2.01, t, 0.07, { vol: 0.08 }); },                 // 감: 똑
       (t, f) => { noise(t, 0.08, { vol: 0.22, freq: 1800, q: 0.8 }); note(f, t + 0.03, 0.15, { to: f * 1.3, vol: 0.15 }); },                  // 사과: 아삭
       (t, f) => note(f * 1.2, t, 0.28, { to: f * 0.8, vib: 18, vol: 0.17, type: 'triangle' }),                                              // 배: 뿌잉
@@ -656,6 +691,29 @@
       (t, f) => note(f * 0.5, t, 0.32, { to: f * 1.1, vol: 0.24 }),                                                                         // 멜론: 뿌웅
       (t) => fanfare(t),                                                                                                                    // 수박: 팡파레
     ];
+
+    // 터질 때 과일마다 다른 비명/뿅 소리 (매번 음높이가 살짝 달라짐)
+    const POPS = [
+      { f: 1700, to: 2700, d: 0.09, type: 'square' },                          // 체리: 뾱!
+      { f: 1250, to: 1900, d: 0.16, type: 'triangle', vib: 70, vibRate: 32 },  // 딸기: 히잉
+      { f: 1500, to: 850,  d: 0.07, type: 'sine', twice: 0.07 },               // 블루베리: 톡톡
+      { f: 850,  to: 1500, d: 0.13, type: 'triangle' },                        // 오렌지: 퐁!
+      { f: 820,  to: 520,  d: 0.18, type: 'square', vib: 45, vibRate: 18 },    // 감: 끼잉
+      { f: 1050, to: 1600, d: 0.1,  type: 'sawtooth', lp: 3200, crunch: 1 },   // 사과: 아삭
+      { f: 700,  to: 1250, d: 0.22, type: 'triangle', vib: 28, vibRate: 10 },  // 배: 뿌잉
+      { f: 640,  to: 960,  d: 0.26, type: 'sine', vib: 14, vibRate: 7 },       // 복숭아: 포오옹
+      { f: 600,  to: 1150, d: 0.07, type: 'square', twice: 0.06, thrice: 1 },  // 파인애플: 따다닥
+      { f: 380,  to: 720,  d: 0.3,  type: 'triangle', vib: 16, vibRate: 9 },   // 멜론: 뿌우웅
+      { f: 300,  to: 520,  d: 0.36, type: 'sawtooth', lp: 1400 },              // 수박: 콰앙
+    ];
+    function pop(lv) {
+      const t = ac.currentTime, P = POPS[lv], j = 0.94 + Math.random() * 0.12;
+      noise(t, 0.035, { vol: 0.32, freq: 2600 - lv * 160, q: 1.4 });           // 터지는 '뽁'
+      note(260 - lv * 14, t, 0.09, { to: 70, vol: 0.3 });                       // 아래로 떨어지는 뚝
+      const n = P.thrice ? 3 : P.twice ? 2 : 1;
+      for (let i = 0; i < n; i++) note(P.f * j * (1 + i * 0.12), t + 0.015 + i * (P.twice || 0), P.d, { type: P.type, to: P.to * j * (1 + i * 0.12), vib: P.vib || 0, vibRate: P.vibRate || 12, lp: P.lp || 0, vol: P.type === 'sine' || P.type === 'triangle' ? 0.22 : 0.09 });
+      if (P.crunch) noise(t + 0.01, 0.09, { vol: 0.25, freq: 3800, q: 0.7 });
+    }
 
     // ---- 배경음악: 8마디 루프 (I–V–vi–IV), 8분음표 단위 ----
     const MEL = [
@@ -690,11 +748,12 @@
       click() { if (ok()) note(1320, ac.currentTime, 0.05, { type: 'triangle', vol: 0.1 }); },
       drop() { if (!ok()) return; const t = ac.currentTime; note(900, t, 0.09, { to: 420, vol: 0.22 }); noise(t, 0.03, { vol: 0.07, freq: 3200 }); },
       bump(impact, lv) { if (!ok()) return; const f = 230 - lv * 13; note(f, ac.currentTime, 0.09, { to: f * 0.6, vol: Math.min(0.15, impact * 0.016), type: 'triangle' }); },
+      pop(lv) { if (ok()) pop(lv); },
       merge(newLv, combo) {
         if (!ok()) return;
-        const t = ac.currentTime;
+        const t = ac.currentTime + 0.07;
         VOICES[Math.min(newLv, MAX)](t, PITCH[Math.min(newLv, MAX)]);
-        for (let i = 1; i < Math.min(combo, 7); i++) note(hz('C6') * Math.pow(2, [0, 2, 4, 7, 9, 12][i - 1] / 12), t + 0.08 + i * 0.06, 0.12, { type: 'triangle', vol: 0.09 });
+        for (let i = 1; i < Math.min(combo, 7); i++) note(hz('C6') * Math.pow(2, [0, 2, 4, 7, 9, 12][i - 1] / 12), t + 0.05 + i * 0.06, 0.12, { type: 'triangle', vol: 0.09 });
       },
       doubleMelon() { if (!ok()) return; fanfare(ac.currentTime); fanfare(ac.currentTime + 0.5); },
       warn() { if (ok()) note(1250, ac.currentTime, 0.05, { type: 'square', vol: 0.04 }); },
@@ -810,10 +869,15 @@
   }
 
   // ================= 게임 상태 =================
-  let engine, fruits, particles, popups, mergeQueue, flares;
+  let engine, fruits, particles, popups, mergeQueue, flares, poppers;
   let score, heldLevel, nextLevel = 0, heldX, canDrop, lastDrop;
   let overTimer, gameOver, combo, lastMergeAt, shake, maxLevel = 0, merges, startTime, lastBump = 0, lastWarn = 0;
   const keys = {};
+  // 휴대폰 가로 화면에서는 게임을 멈춤 (세로 전용)
+  const landscapeLock = matchMedia('(orientation: landscape) and (pointer: coarse) and (max-height: 600px)');
+  // 설치형(PWA)·전체화면에서는 브라우저가 지원하면 세로로 고정
+  const lockPortrait = () => screen.orientation?.lock?.('portrait').catch(() => {});
+  lockPortrait(); addEventListener('pointerdown', lockPortrait, { once: true });
   const randomLevel = () => Math.floor(Math.random() * 5);
 
   function reset() {
@@ -829,7 +893,7 @@
     Events.on(engine, 'collisionStart', onImpact);
     Events.on(engine, 'collisionStart', onCollide);
     Events.on(engine, 'collisionActive', onCollide);
-    fruits = []; particles = []; popups = []; mergeQueue = []; flares = [];
+    fruits = []; particles = []; popups = []; mergeQueue = []; flares = []; poppers = [];
     score = 0; heldLevel = 0; nextLevel = randomLevel(); nextChangedAt = performance.now(); heldX = W / 2;
     canDrop = true; lastDrop = 0; overTimer = 0; gameOver = false;
     combo = 0; lastMergeAt = 0; shake = 0; maxLevel = 0; merges = 0; startTime = performance.now();
@@ -843,7 +907,7 @@
       restitution: BOUNCE_SMALL + (BOUNCE_BIG - BOUNCE_SMALL) * level / MAX,
       friction: 0.08, frictionStatic: 0.3, frictionAir: 0.004, density: 0.001, label: 'fruit',
     });
-    body.level = level; body.born = performance.now();
+    body.level = level; body.born = performance.now(); body.blinkSeed = Math.random() * 3600;
     body.sq = 0; body.sv = 0; body.sqA = 0;
     Body.setVelocity(body, { x: vx, y: vy });
     Composite.add(engine.world, body); fruits.push(body);
@@ -881,6 +945,9 @@
       Composite.remove(engine.world, [a, b]);
       fruits = fruits.filter(f => f !== a && f !== b);
       const lv = a.level, x = (a.position.x + b.position.x) / 2, y = (a.position.y + b.position.y) / 2;
+      // 사라지는 두 과일은 잠깐 '터지는 표정'으로 부풀었다 사라짐
+      for (const f of [a, b]) poppers.push({ lv, x0: f.position.x, y0: f.position.y, cx: x, cy: y, r: f.circleRadius, angle: f.angle, t: 0 });
+      Sound.pop(lv);
       combo = now - lastMergeAt < COMBO_WINDOW ? combo + 1 : 1; lastMergeAt = now; merges++;
       const bonus = combo >= 2 ? (combo - 1) * Math.ceil(SCORES[lv] / 2) : 0;
       const gained = SCORES[lv] + bonus;
@@ -992,7 +1059,7 @@
     if (keys.ArrowRight) heldX += 7 * dt / STEP;
     heldX = clampX(heldX, heldLevel);
 
-    if (!gameOver) {
+    if (!gameOver && !landscapeLock.matches) {
       acc += dt;
       while (acc >= STEP) { growMerged(); Engine.update(engine, STEP); processMerges(now); acc -= STEP; }
       if (!canDrop && now - lastDrop > DROP_COOLDOWN) canDrop = true;
@@ -1011,6 +1078,8 @@
     particles = particles.filter(p => p.life > 0);
     for (const p of flares) { p.x += p.vx * ds; p.y += p.vy * ds; p.t += dt; }
     flares = flares.filter(p => p.t < 800);
+    for (const p of poppers) p.t += dt;
+    poppers = poppers.filter(p => p.t < POP_MS);
     for (const p of popups) p.t += dt;
     popups = popups.filter(p => p.t < 900);
     shake *= 0.88;
@@ -1046,9 +1115,16 @@
 
     for (const f of fruits) {
       const r = f.circleRadius;
-      const face = gameOver ? 'scared' : (danger > 0.3 && f.position.y - r < DANGER_Y + 40 ? 'scared' : (f.sq > 0.1 || f.speed > 6 ? 'squish' : 'happy'));
+      const face = gameOver ? 'scared' : (danger > 0.3 && f.position.y - r < DANGER_Y + 40 ? 'scared' : (f.sq > 0.1 || f.speed > 6 ? 'squish' : ((now + f.blinkSeed) % 3600 < 140 ? 'blink' : 'happy')));
       drawFruitSprite(ctx, f.level, f.position.x, f.position.y, r, f.angle, face, Math.max(-0.25, Math.min(0.35, f.sq)), f.sqA);
     }
+
+    for (const p of poppers) {
+      const k = p.t / POP_MS, m = k * k * 0.6;
+      ctx.globalAlpha = 1 - Math.pow(k, 3);
+      drawFruitSprite(ctx, p.lv, p.x0 + (p.cx - p.x0) * m, p.y0 + (p.cy - p.y0) * m, p.r * (1 + 0.28 * Math.sin(k * Math.PI * 0.75)), p.angle * (1 - k), POP_FACE[p.lv], Math.sin(k * 22) * 0.08 * (1 - k), 0);
+    }
+    ctx.globalAlpha = 1;
 
     ctx.drawImage(CRATE_FRONT, 0, 0);
 
@@ -1104,7 +1180,7 @@
   // 웹폰트가 늦게 오면 상자 글씨와 진화의 고리를 다시 그림
   document.fonts?.ready.then(() => { buildCrate(); drawRing(); });
   requestAnimationFrame(frame);
-  window.__suika = { get state() { return { score, fruits: fruits.length, gameOver, heldLevel, nextLevel, maxLevel }; }, drop, setX: x => heldX = x, bodies: () => fruits };
+  window.__suika = { get state() { return { score, fruits: fruits.length, gameOver, heldLevel, nextLevel, maxLevel }; }, drop, setX: x => heldX = x, bodies: () => fruits, sprite: (lv, face) => SPRITES[lv].faces[face] };
 })();
 </script>
 </body>
