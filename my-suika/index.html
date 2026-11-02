@@ -235,8 +235,8 @@
   const W = 560, H = 760;
   const WALL = 28, FLOOR = 30, FLOOR_Y = H - FLOOR;   // 물리 벽 = 상자 앞 기둥 안쪽 면
   const TOP = 150, DEPTH = 24;                        // 상자 윗면 높이와 원근 깊이
-  const CLOUD_Y = 46, HOLD_Y = 96, DANGER_Y = TOP;    // 상자 테두리가 곧 데드라인
-  const TONGUE_MS = 1200, POP_MS = 220, DROP_COOLDOWN = 550, OVER_GRACE = 1000, SPAWN_GRACE = 1200, COMBO_WINDOW = 900;
+  const CLOUD_Y = 46, HOLD_Y = 96, DANGER_Y = TOP + 56; // 상자 안쪽의 가상 레드라인
+  const TONGUE_MS = 1200, POP_MS = 220, DROP_COOLDOWN = 550, OVER_GRACE = 500, SPAWN_GRACE = 1200, COMBO_WINDOW = 900;
   const BOUNCE_SMALL = 0.6, BOUNCE_BIG = 0.32, SIDE_DAMP = 0.75;
   const SQUASH_K = 620, SQUASH_DAMP = 24;
   const MERGE_START = 0.55, MERGE_GROW = 1.07;
@@ -1213,17 +1213,10 @@
     }
     ctx.globalAlpha = 1;
 
-    // 선에 걸쳐 있으면 옅은 점선으로만 알려 줌
-    if (danger === 0 && nearLine && !gameOver) {
-      ctx.strokeStyle = 'rgba(230,40,40,.35)'; ctx.lineWidth = 3; ctx.setLineDash([10, 12]);
-      ctx.beginPath(); ctx.moveTo(0, DANGER_Y); ctx.lineTo(W, DANGER_Y); ctx.stroke(); ctx.setLineDash([]);
-    }
-    // 데드라인 경고 (상자 테두리)
-    if (danger > 0) {
-      ctx.strokeStyle = `rgba(230,40,40,${0.4 + 0.6 * Math.abs(Math.sin(now / (120 - danger * 60)))})`;
-      ctx.lineWidth = 4 + danger * 3; ctx.setLineDash([14, 10]);
-      ctx.beginPath(); ctx.moveTo(0, DANGER_Y); ctx.lineTo(W, DANGER_Y); ctx.stroke(); ctx.setLineDash([]);
-    }
+    // 레드라인: 평소엔 옅게, 과일이 걸치면 진하게, 완전히 넘으면 깜빡임
+    const lineA = danger > 0 ? 0.4 + 0.6 * Math.abs(Math.sin(now / 60)) : nearLine && !gameOver ? 0.55 + 0.2 * Math.sin(now / 200) : 0.3;
+    ctx.strokeStyle = `rgba(230,40,40,${lineA})`; ctx.lineWidth = danger > 0 ? 6 : 3; ctx.setLineDash([14, 10]);
+    ctx.beginPath(); ctx.moveTo(WALL, DANGER_Y); ctx.lineTo(W - WALL, DANGER_Y); ctx.stroke(); ctx.setLineDash([]);
 
     // 구름 캐릭터와 들고 있는 과일
     const cl = CLOUDS[gameOver || danger > 0.3 ? 'worried' : 'happy'], bob = Math.sin(now / 380) * 2.5;
