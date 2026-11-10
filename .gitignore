@@ -5,3 +5,10 @@ suika-analysis/game.deob.js
 .DS_Store
 
 .claude/
+
+# 원작 APK에서 추출한 참고 데이터 (공개 저장소에 올리지 않음)
+docs/reference/
+*.apk
+
+# 축구 프로젝트 저장소 (별도 git: Andy-GAMEUP/2D_Soccer)
+2D_Soccer/
