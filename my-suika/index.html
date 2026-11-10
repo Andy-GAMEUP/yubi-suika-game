@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#fdf1dc">
 <link rel="manifest" href="manifest.webmanifest">
-<title>유비의 수박게임</title>
+<title>UB의 과일농장</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&display=swap" rel="stylesheet">
@@ -174,7 +174,7 @@
 </head>
 <body>
 <header class="top">
-  <h1>유비의 수박게임<span class="seed">!</span></h1>
+  <h1>UB의 과일농장<span class="seed">!</span></h1>
   <div class="sound-btns">
     <button class="sbtn" id="bgmBtn" aria-label="배경음악" title="배경음악">🎵</button>
     <button class="sbtn" id="sfxBtn" aria-label="효과음" title="효과음">🔊</button>
@@ -185,7 +185,7 @@
 <div class="rotate-msg" role="alert">
   <div class="phone">📱</div>
   휴대폰을 세로로 돌려 주세요
-  <small>유비의 수박게임은 세로 화면에서만 플레이할 수 있어요</small>
+  <small>UB의 과일농장은 세로 화면에서만 플레이할 수 있어요</small>
 </div>
 
 <main class="layout">
@@ -259,6 +259,8 @@
   const ROUND = new Set(['orange', 'apple', 'pear', 'peach', 'melon', 'watermelon']);
   const SQUISH = FRUITS.map(f => ROUND.has(f.kind) ? 0.3 : 1);
   const FACE_INK = ['#fff3d6', '#2a0712'];
+  // 무게는 크기(면적)를 그대로 따르지 않고 30% 덜 반영: 질량 ∝ r^1.4 → 체리:수박 무게 차 58배 → 17배
+  const DENSITY = FRUITS.map(f => 0.001 * Math.pow(f.r / FRUITS[5].r, -0.6));
   const SCORES = [1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 66];
   const MAX = FRUITS.length - 1;
 
@@ -663,7 +665,7 @@
     woodPoly(f, rect(0, FLOOR_Y, W, FLOOR), '#cf8b45', rnd, 'h');
     f.save();
     f.font = '700 22px Gaegu, sans-serif'; f.textAlign = 'center'; f.textBaseline = 'middle';
-    f.fillStyle = 'rgba(74,44,23,.7)'; f.fillText('🍉 유비 농장 · YUBI FARM 🍉', W / 2, FLOOR_Y + FLOOR / 2 + 1);
+    f.fillStyle = 'rgba(74,44,23,.7)'; f.fillText('🍉 UB 과일농장 · UB FARM 🍉', W / 2, FLOOR_Y + FLOOR / 2 + 1);
     f.restore();
     woodPoly(f, rect(0, TOP, WALL, H - TOP), '#dea05a', rnd, 'v');
     woodPoly(f, rect(W - WALL, TOP, WALL, H - TOP), '#d29350', rnd, 'v');
@@ -675,7 +677,7 @@
 
   // ================= 사운드 (Web Audio 합성: 과일별 효과음 + 배경음악) =================
   const Sound = (() => {
-    let ac = null, master, sfxBus, bgmBus, noiseBuf, timer = null, step = 0, nextAt = 0;
+    let ac = null, master, sfxBus, bgmBus, noiseBuf, voiceBuf = null, timer = null, step = 0, nextAt = 0;
     let sfxOn = storage.get('yubi-sfx') !== '0', bgmOn = storage.get('yubi-bgm') !== '0';
     const NOTE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
     const hz = s => s ? 440 * Math.pow(2, (NOTE[s[0]] + (parseInt(s.slice(1)) + 1) * 12 - 69) / 12) : 0;
@@ -693,6 +695,7 @@
       noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
       const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
       nextAt = ac.currentTime + 0.1;
+      fetch('yubiya.mp3').then(r => r.arrayBuffer()).then(b => ac.decodeAudioData(b)).then(b => { voiceBuf = b; }).catch(() => {});
       timer = setInterval(schedule, 25);
     }
     function unlock() { init(); if (ac && ac.state === 'suspended') ac.resume(); }
@@ -798,6 +801,19 @@
         const t = ac.currentTime + 0.07;
         VOICES[Math.min(newLv, MAX)](t, PITCH[Math.min(newLv, MAX)]);
         for (let i = 1; i < Math.min(combo, 7); i++) note(hz('C6') * Math.pow(2, [0, 2, 4, 7, 9, 12][i - 1] / 12), t + 0.05 + i * 0.06, 0.12, { type: 'triangle', vol: 0.09 });
+      },
+      // 수박 탄생: '어?!' 하고 올라가는 소리 뒤에 아빠가 크게 '유비야~!'
+      yubiya() {
+        if (!ok()) return;
+        const t = ac.currentTime + 0.05;
+        note(500, t, 0.22, { type: 'sine', vol: 0.22, to: 1600 });
+        note(hz('G5'), t + 0.02, 0.18, { type: 'triangle', vol: 0.12 });
+        if (!voiceBuf) return;
+        const s = ac.createBufferSource(), g = ac.createGain();
+        s.buffer = voiceBuf; g.gain.value = 1.6;
+        s.connect(g).connect(sfxBus); s.start(t + 0.22);
+        // 목소리가 잘 들리게 배경음악을 잠깐 줄임
+        if (bgmOn) { bgmBus.gain.setTargetAtTime(0.08, t, 0.05); bgmBus.gain.setTargetAtTime(0.3, t + 0.22 + voiceBuf.duration, 0.3); }
       },
       doubleMelon() { if (!ok()) return; fanfare(ac.currentTime); fanfare(ac.currentTime + 0.5); },
       warn() { if (ok()) note(1250, ac.currentTime, 0.05, { type: 'square', vol: 0.04 }); },
@@ -950,7 +966,7 @@
     const f = FRUITS[level];
     const body = Bodies.circle(x, y, f.r * (popIn ? MERGE_START : 1), {
       restitution: BOUNCE_SMALL + (BOUNCE_BIG - BOUNCE_SMALL) * level / MAX,
-      friction: 0.08, frictionStatic: 0.3, frictionAir: 0.004, density: 0.001, label: 'fruit',
+      friction: 0.08, frictionStatic: 0.3, frictionAir: 0.004, density: DENSITY[level], label: 'fruit',
     });
     body.level = level; body.born = performance.now(); body.blinkSeed = Math.random() * 3600;
     body.tongueAt = body.born + 4000 + Math.random() * 14000; body.tongueFace = Math.random() < 0.5 ? 'tongue' : 'tongue2';
@@ -1021,7 +1037,7 @@
         const nb = spawn(lv + 1, x, y, (a.velocity.x + b.velocity.x) / 2, Math.min(0, (a.velocity.y + b.velocity.y) / 2) - 2.5, true);
         nb.sq = -0.2;
         Sound.merge(lv + 1, combo);
-        if (lv + 1 === MAX) { shake = 14; burst(x, y, '#ffffff', 40, FRUITS[MAX].r); flareBurst(x, y, 12); }
+        if (lv + 1 === MAX) { Sound.yubiya(); popups.push({ x: W / 2, y: TOP + 140, text: '유비야~!', combo: 8, t: 0 }); shake = 14; burst(x, y, '#ffffff', 40, FRUITS[MAX].r); flareBurst(x, y, 12); }
         else if (lv >= 6) shake = Math.max(shake, lv);
       } else {
         Sound.doubleMelon(); shake = 18; flareBurst(x, y, 16);

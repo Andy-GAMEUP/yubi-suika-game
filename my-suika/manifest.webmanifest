@@ -1,6 +1,6 @@
 {
-  "name": "유비의 수박게임",
-  "short_name": "수박게임",
+  "name": "UB의 과일농장",
+  "short_name": "과일농장",
   "start_url": "./",
   "display": "standalone",
   "orientation": "portrait",
